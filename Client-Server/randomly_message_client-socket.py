@@ -4,7 +4,7 @@ import string
 import time
 
 # --- Client Configuration ---
-SERVER_IP = "172.23.198.195"  # Target Server IP
+SERVER_IP = "172.23.210.60"  # Target Server IP
 SERVER_PORT = 12000
 
 def generate_random_string(length=10):
