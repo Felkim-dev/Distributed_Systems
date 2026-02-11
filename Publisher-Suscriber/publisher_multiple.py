@@ -21,6 +21,7 @@ pub3 = context.socket(zmq.PUB)
 pub3.bind("tcp://" + HOST + ":" + PORT3)
 
 
+print("Publisher escuchando a los subscribers...")
 time.sleep(10)
 
 while True:
