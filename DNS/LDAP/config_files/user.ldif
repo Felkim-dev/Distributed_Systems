@@ -1,0 +1,6 @@
+dn: uid=erick,ou=People,dc=example,dc=com
+objectClass: inetOrgPerson
+uid: erick
+sn: Olivo
+cn: Erick Olivo
+userPassword: yachay2026erick
