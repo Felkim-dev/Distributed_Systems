@@ -10,7 +10,6 @@ try:
     for rdata in answers:
         print(f"Hostname: {rdata.to_text()}")
 
-
 except dns.resolver.NXDOMAIN:
     print(f"No domain name found for IP: {ip_address}")
 except dns.resolver.NoNameservers:
