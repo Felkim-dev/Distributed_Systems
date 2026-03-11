@@ -100,6 +100,17 @@ class NetworkedVectorClockNode:
         # ZMQ context shared across threads
         self.context = zmq.Context()
 
+        # Persistent PUSH sockets — one per peer, established at startup
+        # so the TCP connection is ready when we need to send.
+        self.push_sockets = {}
+        for peer_id, address in self.peers.items():
+            sock = self.context.socket(zmq.PUSH)
+            sock.setsockopt(zmq.SNDTIMEO, 5000)  # 5s send timeout
+            sock.setsockopt(zmq.LINGER, 2000)
+            sock.connect(f"tcp://{address}")
+            self.push_sockets[peer_id] = sock
+            print(f"  [INIT] Connected PUSH socket to {peer_id} at {address}")
+
     def start_listener(self):
         """Background thread: listens for incoming messages on a PULL socket."""
         receiver = self.context.socket(zmq.PULL)
@@ -144,20 +155,16 @@ class NetworkedVectorClockNode:
 
     def send_to_peer(self, target_id, message="sync"):
         """Send a message to a specific peer, piggybacking the vector clock."""
-        if target_id not in self.peers:
+        if target_id not in self.push_sockets:
             print(
                 f"  [ERROR] Unknown peer: {target_id}. Use 'peers' to see known nodes."
             )
             return
 
         address = self.peers[target_id]
-        sender = self.context.socket(zmq.PUSH)
-        sender.setsockopt(zmq.SNDTIMEO, 3000)  # 3s send timeout
-        sender.setsockopt(zmq.LINGER, 1000)
+        sender = self.push_sockets[target_id]
 
         try:
-            sender.connect(f"tcp://{address}")
-
             with self.lock:
                 outgoing_vector = self.vclock.send_event()
                 state_snapshot = self.vclock.get_state().copy()
@@ -181,8 +188,6 @@ class NetworkedVectorClockNode:
             print(f"  [ERROR] Could not reach {target_id} at {address} (timeout).")
         except zmq.ZMQError as e:
             print(f"  [ERROR] ZMQ error sending to {target_id}: {e}")
-        finally:
-            sender.close()
 
     def local_tick(self):
         """Execute a local event (no network communication)."""
@@ -307,6 +312,9 @@ class NetworkedVectorClockNode:
             self.running = False
             print("\n  Interrupted. Shutting down...")
         finally:
+            # Close all persistent PUSH sockets
+            for sock in self.push_sockets.values():
+                sock.close()
             self.context.term()
 
 
