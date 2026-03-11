@@ -1,8 +1,8 @@
 import zmq
 import time
 import sys
+import argparse
 
-port = "5000"
 
 def validate_port(p):
     try:
@@ -14,22 +14,42 @@ def validate_port(p):
         print(f"Invalid port: {p}. Must be an integer between 1024 and 65535.")
         return False
 
-def utc_time_server():
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="UTC Time Server using ZMQ")
+    parser.add_argument(
+        "-p",
+        "--port",
+        type=str,
+        default="5000",
+        help="Port to bind the server (default: 5000)",
+    )
+    parser.add_argument(
+        "-b",
+        "--bind",
+        type=str,
+        default="*",
+        help="Address to bind (default: * = all interfaces)",
+    )
+    return parser.parse_args()
+
+
+def utc_time_server(bind_address, port):
     if not validate_port(port):
         sys.exit(1)
 
     context = zmq.Context()
-    socket = context.socket(zmq.REP)  	# REP stands for Reply
+    socket = context.socket(zmq.REP)  # REP stands for Reply
 
     try:
-        socket.bind("tcp://*:" + port)  	# Bind to port 5000
+        socket.bind(f"tcp://{bind_address}:{port}")
     except zmq.ZMQError as e:
-        print(f"Failed to bind to port {port}: {e}")
+        print(f"Failed to bind to {bind_address}:{port}: {e}")
         socket.close()
         context.term()
         sys.exit(1)
 
-    print("UTC Time Server running...")
+    print(f"UTC Time Server running on {bind_address}:{port}...")
 
     try:
         while True:
@@ -38,7 +58,7 @@ def utc_time_server():
             print(f"Received request: {message.decode()}")
 
             # Get UTC time
-            utc_time = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())
+            utc_time = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
 
             # Send UTC time back to client
             socket.send_string(utc_time)
@@ -51,6 +71,7 @@ def utc_time_server():
         socket.close()
         context.term()
 
-if __name__ == "__main__":
-    utc_time_server()
 
+if __name__ == "__main__":
+    args = parse_args()
+    utc_time_server(args.bind, args.port)
